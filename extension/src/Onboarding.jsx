@@ -5,11 +5,23 @@ const DEMO_WALLET = "0x94F3Dd2002EF0AD05526849f742280A66fDC5777";
 
 export default function Onboarding({ onComplete }) {
   const [step, setStep] = useState("choice");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [connecting, setConnecting] = useState(false);
 
+  const persistName = async (val) => {
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({
+          deliberateUserFirstName: val,
+          deliberateUserLastName: "",
+        });
+      }
+    } catch (_) {}
+  };
+
   const handleSignIn = async () => {
+    await persistName(name.trim());
     try {
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
         await chrome.storage.local.set({ deliberateWallet: DEMO_WALLET });
@@ -26,8 +38,8 @@ export default function Onboarding({ onComplete }) {
         if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
           await chrome.storage.local.set({
             deliberateWallet: wallet,
-            deliberateUserFirstName: firstName.trim(),
-            deliberateUserLastName: lastName.trim(),
+            deliberateUserFirstName: name.trim(),
+            deliberateUserLastName: "",
           });
         }
       } catch (_) {}
@@ -37,7 +49,14 @@ export default function Onboarding({ onComplete }) {
     }
   };
 
-  const canContinue = firstName.trim().length > 0 && lastName.trim().length > 0;
+  const canContinue =
+    name.trim().length > 0 && password.trim().length > 0;
+
+  const goTo = (next) => {
+    setName("");
+    setPassword("");
+    setStep(next);
+  };
 
   return (
     <main className="db-root">
@@ -53,7 +72,7 @@ export default function Onboarding({ onComplete }) {
               <button
                 type="button"
                 className="db-choice-btn primary"
-                onClick={handleSignIn}
+                onClick={() => goTo("signin")}
               >
                 <span className="db-choice-title">Sign In</span>
                 <span className="db-choice-sub">
@@ -63,7 +82,7 @@ export default function Onboarding({ onComplete }) {
               <button
                 type="button"
                 className="db-choice-btn"
-                onClick={() => setStep("signup")}
+                onClick={() => goTo("signup")}
               >
                 <span className="db-choice-title">Sign Up</span>
                 <span className="db-choice-sub">Create a new account</span>
@@ -81,7 +100,7 @@ export default function Onboarding({ onComplete }) {
                 type="button"
                 className="db-back"
                 aria-label="Back"
-                onClick={() => setStep("choice")}
+                onClick={() => goTo("choice")}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -94,56 +113,75 @@ export default function Onboarding({ onComplete }) {
                   />
                 </svg>
               </button>
-              <h1 className="db-wordmark signup">Create account</h1>
-              <p className="db-tag">Tell us a bit about you.</p>
+              <h1 className="db-wordmark signup">
+                {step === "signup" ? "Create account" : "Welcome back"}
+              </h1>
+              <p className="db-tag">
+                {step === "signup"
+                  ? "Set up your account to continue."
+                  : "Sign in to your account."}
+              </p>
             </header>
 
             <form
               className="db-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!connecting && canContinue) handleConnectWallet();
+                if (connecting || !canContinue) return;
+                if (step === "signup") handleConnectWallet();
+                else handleSignIn();
               }}
             >
               <div className="db-field">
-                <label htmlFor="firstName">First name</label>
+                <label htmlFor="name">Name</label>
                 <input
-                  id="firstName"
-                  name="firstName"
+                  id="name"
+                  name="name"
                   type="text"
-                  placeholder="First name"
-                  autoComplete="given-name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Your name"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="db-input"
                 />
               </div>
 
               <div className="db-field">
-                <label htmlFor="lastName">Last name</label>
+                <label htmlFor="password">
+                  {step === "signup" ? "Create password" : "Password"}
+                </label>
                 <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  placeholder="Last name"
-                  autoComplete="family-name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder={
+                    step === "signup" ? "Create a password" : "Password"
+                  }
+                  autoComplete={
+                    step === "signup" ? "new-password" : "current-password"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="db-input"
                 />
               </div>
 
               <button
-                type="button"
-                onClick={handleConnectWallet}
+                type="submit"
                 disabled={connecting || !canContinue}
                 className="db-cta"
               >
-                {connecting ? "Connecting…" : "Connect Wallet"}
+                {step === "signup"
+                  ? connecting
+                    ? "Connecting…"
+                    : "Connect Wallet"
+                  : "Sign In"}
               </button>
 
               <p className="db-helper">
-                Use your existing wallet to continue securely.
+                {step === "signup"
+                  ? "You'll connect your wallet to finish creating your account."
+                  : "Use the credentials you signed up with."}
               </p>
             </form>
           </>
