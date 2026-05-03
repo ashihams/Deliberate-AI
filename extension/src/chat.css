@@ -333,15 +333,35 @@ body[data-theme="dark"] .chat-main {
   color: #fff;
   flex-shrink: 0;
 }
-.rep-badge {
-  margin-left: auto;
-  background: var(--tg-rep-bg);
-  border: 1px solid var(--tg-rep-border);
-  border-radius: 999px;
-  padding: 1px 7px;
-  color: var(--tg-rep-text);
-  font-weight: 600;
-  font-size: 10px;
+/* Star rating */
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.star {
+  display: inline-block;
+  position: relative;
+  font-style: normal;
+}
+.star.full { color: #f5b942; }
+.star.empty { color: #d3deea; }
+body[data-theme="dark"] .star.empty { color: #2a3a4d; }
+.star.half {
+  color: #d3deea;
+}
+body[data-theme="dark"] .star.half { color: #2a3a4d; }
+.star.half::before {
+  content: "★";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  overflow: hidden;
+  color: #f5b942;
 }
 .bubble {
   border-radius: 14px;
@@ -618,8 +638,6 @@ body[data-theme="dark"] .send-btn:hover {
 }
 .market-card-rep {
   margin-left: auto;
-  font-size: 10px;
-  color: var(--tg-muted);
 }
 .market-card-ens {
   font-size: 10px;

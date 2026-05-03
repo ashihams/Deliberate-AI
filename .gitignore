@@ -40,6 +40,8 @@ ENV/
 node_modules/
 dist/
 build/
+.vite/
+**/.vite/
 *.log
 npm-debug.log*
 

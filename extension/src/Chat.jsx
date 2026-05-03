@@ -602,7 +602,6 @@ export default function Chat({ onLogout, onBack }) {
                           {a.name.charAt(0)}
                         </span>
                         <span className="market-card-name">{a.name}</span>
-                        <span className="market-card-rep">{a.reputation} ⛓</span>
                       </div>
                       <div className="market-card-ens">{a.ens_name}</div>
                       <div className="market-card-foot">
@@ -613,6 +612,7 @@ export default function Chat({ onLogout, onBack }) {
                         >
                           {a.active ? "Active" : "Inactive"}
                         </button>
+                        <Stars rep={a.reputation} className="market-card-rep" />
                       </div>
                     </div>
                   ))}
@@ -697,7 +697,6 @@ function AgentMessage({ msg, colors }) {
   const color = colors[id] || "#7F77DD";
   const name = msg.agent_name || id;
   const ens = msg.ens_name || id + ".deliberate.eth";
-  const rep = msg.reputation || 500;
   const text = msg.content || msg.argument || "";
   return (
     <div className="msg-row">
@@ -709,7 +708,6 @@ function AgentMessage({ msg, colors }) {
           <span>
             {name} · {ens}
           </span>
-          <span className="rep-badge">{rep} ⛓</span>
         </div>
         <div
           className="bubble agent"
@@ -730,5 +728,27 @@ function TypingIndicator({ color }) {
       <span className="typing-dot" style={{ background: color }} />
       <span className="typing-dot" style={{ background: color }} />
     </div>
+  );
+}
+
+function Stars({ rep, className = "" }) {
+  const score = Math.max(
+    0,
+    Math.min(5, Math.round((Number(rep || 0) / 1000) * 5 * 2) / 2)
+  );
+  const full = Math.floor(score);
+  const half = score - full >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  const cls = ("stars " + className).trim();
+  return (
+    <span className={cls} title={`${rep} reputation`}>
+      {Array.from({ length: full }).map((_, i) => (
+        <span key={"f" + i} className="star full">★</span>
+      ))}
+      {half ? <span className="star half">★</span> : null}
+      {Array.from({ length: empty }).map((_, i) => (
+        <span key={"e" + i} className="star empty">★</span>
+      ))}
+    </span>
   );
 }
