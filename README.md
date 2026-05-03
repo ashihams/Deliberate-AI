@@ -88,6 +88,23 @@ uvicorn main:app --reload --port 8000
 | ENS_PARENT       | ENS parent domain (deliberate.eth)           |
 
 ---
+## Onchain Agent Identity (ENS)
+Each AI agent in Deliberate has a real onchain identity via ENS on Sepolia.
+
+Agents are not just labels in code — they are registered as ENS subnames under `deliberate.eth`, making them verifiable, portable identities onchain.
+
+- marcus.deliberate.eth  
+- diana.deliberate.eth  
+- raj.deliberate.eth  
+- james.deliberate.eth  
+
+When a user creates a custom agent, the system automatically executes 3 onchain transactions:
+1. Create subname (setSubnodeOwner)
+2. Set resolver
+3. Assign address
+
+This gives every agent a persistent onchain identity.
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c5d7e466-6739-40ac-86c6-0effa4644721" />
 
 ## AXL P2P
 
