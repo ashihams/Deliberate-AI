@@ -1,60 +1,72 @@
 import { useState } from "react";
 import { connectWallet } from "./utils/wallet.js";
+import { signin as apiSignin, signup as apiSignup } from "./utils/api.js";
 
 const DEMO_WALLET = "0x94F3Dd2002EF0AD05526849f742280A66fDC5777";
 
 export default function Onboarding({ onComplete }) {
   const [step, setStep] = useState("choice");
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [connecting, setConnecting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const persistName = async (val) => {
+  const persistSession = async (extras = {}) => {
     try {
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
         await chrome.storage.local.set({
-          deliberateUserFirstName: val,
+          deliberateUsername: username.trim().toLowerCase(),
+          deliberateUserFirstName: username.trim(),
           deliberateUserLastName: "",
+          ...extras,
         });
       }
     } catch (_) {}
   };
 
   const handleSignIn = async () => {
-    await persistName(name.trim());
+    setBusy(true);
+    setErrorMsg("");
     try {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({ deliberateWallet: DEMO_WALLET });
-      }
-    } catch (_) {}
-    if (typeof onComplete === "function") onComplete();
+      await apiSignin({
+        username: username.trim().toLowerCase(),
+        password,
+      });
+      await persistSession({ deliberateWallet: DEMO_WALLET });
+      if (typeof onComplete === "function") onComplete();
+    } catch (e) {
+      setErrorMsg(e.message || "Could not sign in.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleConnectWallet = async () => {
-    setConnecting(true);
+  const handleSignUp = async () => {
+    setBusy(true);
+    setErrorMsg("");
     try {
+      await apiSignup({
+        username: username.trim().toLowerCase(),
+        password,
+      });
       const wallet = await connectWallet();
-      try {
-        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-          await chrome.storage.local.set({
-            deliberateWallet: wallet,
-            deliberateUserFirstName: name.trim(),
-            deliberateUserLastName: "",
-          });
-        }
-      } catch (_) {}
+      await persistSession({ deliberateWallet: wallet || DEMO_WALLET });
       if (typeof onComplete === "function") onComplete();
+    } catch (e) {
+      setErrorMsg(e.message || "Could not create account.");
     } finally {
-      setConnecting(false);
+      setBusy(false);
     }
   };
 
   const canContinue =
-    name.trim().length > 0 && password.trim().length > 0;
+    username.trim().length >= 3 && password.trim().length >= 4;
 
   const goTo = (next) => {
-    setName("");
+    setUsername("");
     setPassword("");
+    setErrorMsg("");
+    setBusy(false);
     setStep(next);
   };
 
@@ -127,21 +139,24 @@ export default function Onboarding({ onComplete }) {
               className="db-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (connecting || !canContinue) return;
-                if (step === "signup") handleConnectWallet();
+                if (busy || !canContinue) return;
+                if (step === "signup") handleSignUp();
                 else handleSignIn();
               }}
             >
               <div className="db-field">
-                <label htmlFor="name">Name</label>
+                <label htmlFor="username">Username</label>
                 <input
-                  id="name"
-                  name="name"
+                  id="username"
+                  name="username"
                   type="text"
-                  placeholder="Your name"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="3-32 chars: letters, numbers, _ . -"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
                   className="db-input"
                 />
               </div>
@@ -161,20 +176,27 @@ export default function Onboarding({ onComplete }) {
                     step === "signup" ? "new-password" : "current-password"
                   }
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
                   className="db-input"
                 />
               </div>
 
+              {errorMsg && <p className="db-error">{errorMsg}</p>}
+
               <button
                 type="submit"
-                disabled={connecting || !canContinue}
+                disabled={busy || !canContinue}
                 className="db-cta"
               >
-                {step === "signup"
-                  ? connecting
-                    ? "Connecting…"
-                    : "Connect Wallet"
+                {busy
+                  ? step === "signup"
+                    ? "Creating…"
+                    : "Signing in…"
+                  : step === "signup"
+                  ? "Connect Wallet"
                   : "Sign In"}
               </button>
 
@@ -410,6 +432,17 @@ export default function Onboarding({ onComplete }) {
           text-align: center;
           font-size: 12px;
           color: #64748b;
+        }
+        .db-error {
+          margin: -4px 0 0;
+          padding: 8px 12px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 10px;
+          color: #b91c1c;
+          font-size: 12px;
+          font-weight: 500;
+          text-align: center;
         }
       `}</style>
     </main>

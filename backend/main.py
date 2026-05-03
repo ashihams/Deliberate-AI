@@ -9,7 +9,15 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-from models import AgentRegistration, ChatMessage, ChatResponse, DecisionLog, Portfolio
+from models import (
+    AgentRegistration,
+    AuthRequest,
+    ChatHistorySave,
+    ChatMessage,
+    ChatResponse,
+    DecisionLog,
+    Portfolio,
+)
 from registry import AgentRegistry
 from chat import GroupChat
 from portfolio import get_portfolio
@@ -20,6 +28,9 @@ from blockchain import (
     register_agent_onchain,
 )
 from axl_service import start_axl_node, is_running
+
+import auth
+import database
 
 registry = AgentRegistry()
 sessions: dict[str, GroupChat] = {}
@@ -34,6 +45,28 @@ def get_session(session_id: str) -> GroupChat:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_axl_node()  # best-effort; app runs fine without AXL
+    if await database.ping():
+        try:
+            await database.ensure_indexes()
+            users_count = await database.get_db().users.count_documents({})
+            chats_count = await database.get_db().chats.count_documents({})
+            agents_count = await database.get_db().user_agents.count_documents({})
+            hydrated = 0
+            for agent_dict in await database.all_user_agents():
+                if registry.hydrate_agent(agent_dict):
+                    hydrated += 1
+            print(
+                f"[DB] MongoDB connected to '{database.DB_NAME}' "
+                f"(users={users_count}, chats={chats_count}, "
+                f"user_agents={agents_count}, hydrated={hydrated})"
+            )
+        except Exception as e:
+            print(f"[DB] Connected but startup tasks failed: {e}")
+    else:
+        print(
+            "[DB] MongoDB unreachable - check MONGO_URL / Atlas IP allowlist. "
+            "Auth and history endpoints will return errors until this is fixed."
+        )
     yield
 
 
@@ -54,7 +87,22 @@ class PortfolioRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "product": "Deliberate"}
+    db_ok = await database.ping()
+    db_info = {"connected": db_ok}
+    if db_ok:
+        try:
+            db = database.get_db()
+            db_info.update(
+                {
+                    "name": database.DB_NAME,
+                    "users": await db.users.count_documents({}),
+                    "chats": await db.chats.count_documents({}),
+                    "user_agents": await db.user_agents.count_documents({}),
+                }
+            )
+        except Exception as e:
+            db_info["error"] = str(e)
+    return {"status": "ok", "product": "Deliberate", "mongodb": db_info}
 
 
 @app.post("/portfolio", response_model=Portfolio)
@@ -116,6 +164,44 @@ async def clear_chat_history(session_id: str = "default"):
     return {"cleared": True, "session_id": session_id}
 
 
+@app.post("/auth/signup")
+async def auth_signup(req: AuthRequest):
+    return await auth.signup(req.username, req.password)
+
+
+@app.post("/auth/signin")
+async def auth_signin(req: AuthRequest):
+    return await auth.signin(req.username, req.password)
+
+
+@app.get("/users/{username}/chat")
+async def get_user_chat(username: str):
+    messages = await database.load_chat(username.lower())
+    return {"username": username.lower(), "messages": messages}
+
+
+@app.put("/users/{username}/chat")
+async def save_user_chat(username: str, body: ChatHistorySave):
+    await database.save_chat(username.lower(), body.messages)
+    return {"username": username.lower(), "saved": len(body.messages)}
+
+
+@app.delete("/users/{username}/chat")
+async def delete_user_chat(username: str):
+    await database.clear_chat(username.lower())
+    return {"username": username.lower(), "cleared": True}
+
+
+@app.get("/users/{username}/agents")
+async def get_user_agents(username: str):
+    agents = await database.load_user_agents(username.lower())
+    rep_map = await get_all_reputations([a.get("id") for a in agents if a.get("id")])
+    for a in agents:
+        if a.get("id") in rep_map:
+            a["reputation"] = rep_map[a["id"]]
+    return agents
+
+
 @app.get("/agents")
 async def list_agents():
     agents = registry.get_all_agents()
@@ -135,6 +221,12 @@ async def register_agent(registration: AgentRegistration):
     try:
         config = registry.register_agent(registration)
         await register_agent_onchain(config.id, config.ens_name)
+        username = (registration.username or "").strip().lower()
+        if username:
+            try:
+                await database.add_user_agent(username, config.model_dump())
+            except Exception as e:
+                print(f"[DB] add_user_agent failed for {username}: {e}")
         return config
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))

@@ -58,3 +58,17 @@ class AgentRegistry:
     def update_reputation(self, agent_id: str, new_rep: int):
         if agent_id in self.agents:
             self.agents[agent_id].reputation = new_rep
+
+    def hydrate_agent(self, agent_dict: dict) -> AgentConfig | None:
+        """Re-add an agent loaded from the database (skip if already present)."""
+        try:
+            config = AgentConfig(**agent_dict)
+        except Exception:
+            return None
+        if config.id in self.agents:
+            return self.agents[config.id]
+        used_ports = [a.axl_port for a in self.agents.values()]
+        if not config.axl_port:
+            config.axl_port = (max(used_ports) + 1) if used_ports else BASE_AXL_PORT + 1
+        self.agents[config.id] = config
+        return config

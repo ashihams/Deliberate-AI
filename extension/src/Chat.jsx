@@ -7,6 +7,9 @@ import {
   postChat,
   logDecision,
   registerAgent,
+  getUserChat,
+  saveUserChat,
+  getUserAgents,
 } from "./utils/api.js";
 import { truncateAddress, nowTime } from "./utils/format.js";
 import { personalSign } from "./utils/sign.js";
@@ -30,6 +33,8 @@ export default function Chat({ onLogout, onBack }) {
 
   const [theme, setTheme] = useState("light");
   const [profile, setProfile] = useState({ firstName: "", lastName: "" });
+  const [username, setUsername] = useState("");
+  const [hydrated, setHydrated] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -37,6 +42,7 @@ export default function Chat({ onLogout, onBack }) {
   const chatStreamRef = useRef(null);
   const menuRef = useRef(null);
   const kebabRef = useRef(null);
+  const saveTimerRef = useRef(null);
 
   useEffect(() => {
     document.body.classList.add("chat-body");
@@ -53,6 +59,7 @@ export default function Chat({ onLogout, onBack }) {
       let storedTheme = "light";
       let firstName = "";
       let lastName = "";
+      let storedUsername = "";
       try {
         if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
           const res = await chrome.storage.local.get([
@@ -60,11 +67,13 @@ export default function Chat({ onLogout, onBack }) {
             "deliberateTheme",
             "deliberateUserFirstName",
             "deliberateUserLastName",
+            "deliberateUsername",
           ]);
           wallet = (res && res.deliberateWallet) || DEMO_WALLET;
           storedTheme = (res && res.deliberateTheme) || "light";
           firstName = (res && res.deliberateUserFirstName) || "";
           lastName = (res && res.deliberateUserLastName) || "";
+          storedUsername = (res && res.deliberateUsername) || "";
         } else {
           wallet = DEMO_WALLET;
         }
@@ -74,19 +83,30 @@ export default function Chat({ onLogout, onBack }) {
       setCurrentWallet(wallet);
       setTheme(storedTheme);
       setProfile({ firstName, lastName });
+      setUsername(storedUsername);
 
-      setMessages([
-        {
-          role: "agent",
-          agent_id: "james",
-          agent_name: "James",
-          ens_name: "james.deliberate.eth",
-          content:
-            "Welcome to Deliberate. Connect your wallet and ask the committee anything.",
-          reputation: 500,
-          timestamp: nowTime(),
-        },
-      ]);
+      const welcome = {
+        role: "agent",
+        agent_id: "james",
+        agent_name: "James",
+        ens_name: "james.deliberate.eth",
+        content:
+          "Welcome to Deliberate. Connect your wallet and ask the committee anything.",
+        reputation: 500,
+        timestamp: nowTime(),
+      };
+
+      let initialMessages = [welcome];
+      if (storedUsername) {
+        try {
+          const remoteMessages = await getUserChat(storedUsername);
+          if (Array.isArray(remoteMessages) && remoteMessages.length > 0) {
+            initialMessages = remoteMessages;
+          }
+        } catch (_) {}
+      }
+      setMessages(initialMessages);
+      setHydrated(true);
 
       try {
         const data = await fetchPortfolio(wallet);
@@ -100,13 +120,57 @@ export default function Chat({ onLogout, onBack }) {
           setAgents((prev) =>
             prev.map((a) => {
               const remote = list.find((r) => r.id === a.id);
-              return remote ? { ...a, reputation: remote.reputation || a.reputation } : a;
+              return remote
+                ? { ...a, reputation: remote.reputation || a.reputation }
+                : a;
             })
           );
         }
       } catch (_) {}
+
+      if (storedUsername) {
+        try {
+          const userAgents = await getUserAgents(storedUsername);
+          if (Array.isArray(userAgents) && userAgents.length > 0) {
+            setAgents((prev) => {
+              const existing = new Set(prev.map((a) => a.id));
+              const additions = userAgents
+                .filter((a) => a && a.id && !existing.has(a.id))
+                .map((a) => ({
+                  id: a.id,
+                  name: a.name,
+                  ens_name: a.ens_name || `${a.id}.deliberate.eth`,
+                  reputation: a.reputation || 500,
+                  active: true,
+                }));
+              return [...prev, ...additions];
+            });
+            setAgentColors((prev) => {
+              const next = { ...prev };
+              for (const a of userAgents) {
+                if (a && a.id && !next[a.id]) {
+                  next[a.id] = a.color || "#534AB7";
+                }
+              }
+              return next;
+            });
+          }
+        } catch (_) {}
+      }
     })();
   }, []);
+
+  // Persist chat history to MongoDB whenever messages change (debounced).
+  useEffect(() => {
+    if (!hydrated || !username) return undefined;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveUserChat(username, messages).catch(() => {});
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [messages, hydrated, username]);
 
   useEffect(() => {
     if (chatStreamRef.current) {
@@ -234,6 +298,9 @@ export default function Chat({ onLogout, onBack }) {
     setShowOnchain(false);
     setCurrentDebate(null);
     setTypingAgent(null);
+    if (username) {
+      saveUserChat(username, []).catch(() => {});
+    }
   };
 
   const handleSign = async () => {
@@ -325,6 +392,7 @@ export default function Chat({ onLogout, onBack }) {
         style,
         model: "llama-3.3-70b-versatile",
         wallet_address: currentWallet || DEMO_WALLET,
+        username,
       });
       console.log("Created agent:", created);
       setAgentColors((prev) => ({

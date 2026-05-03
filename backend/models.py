@@ -54,3 +54,13 @@ class AgentRegistration(BaseModel):
     style: str
     model: str = "llama-3.3-70b-versatile"
     wallet_address: str
+    username: str = ""
+
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+
+class ChatHistorySave(BaseModel):
+    messages: list[dict]
