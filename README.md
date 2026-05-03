@@ -91,6 +91,7 @@ uvicorn main:app --reload --port 8000
 
 ## AXL P2P
 
+<img width="875" height="484" alt="Screenshot 2026-05-02 221558" src="https://github.com/user-attachments/assets/bcc3e3ac-d54e-4f84-a296-43e6d6edd33d" />
 Place the AXL binary at `deliberate/axl/axl`. Each agent gets its own AXL node:
 
 - marcus → port 9001
