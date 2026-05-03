@@ -3,9 +3,10 @@
 **A plug-and-play multi-agent framework where AI agents debate decisions based on your wallet, and their reputation is tracked onchain.**
 
 ---
+## Workflow
+<img width="3190" height="652" alt="mermaid-diagram-2026-05-03-234533" src="https://github.com/user-attachments/assets/b67da2b3-da81-4d25-949d-6dc8381c764a" />
 
 ## Architecture
-
 ```
 deliberate/
 ├── backend/          # FastAPI server
