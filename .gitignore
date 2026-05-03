@@ -1,0 +1,51 @@
+# Environment / secrets
+# Glob rules (cover any .env at any depth, including backend/.env, extension/.env, etc.)
+.env
+.env.*
+**/.env
+**/.env.*
+# Explicit paths (redundant, kept for clarity / safety)
+/.env
+/backend/.env
+/extension/.env
+# Allow committing template files like .env.example
+!**/.env.example
+!.env.example
+
+# Private keys / certs (PEM, KEY, P12, PFX, etc.)
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+# Explicit: AXL P2P node identity
+/axl/private.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+venv/
+.venv/
+env/
+ENV/
+
+# Node / build outputs
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
