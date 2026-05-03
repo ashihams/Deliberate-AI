@@ -107,4 +107,6 @@ AXL nodes are started automatically at server startup. If AXL is unavailable, de
 
 Decisions are logged onchain via `logDecision()`. Agent reputations are read live from `getReputation()`. The contract is deployed at `CONTRACT_ADDRESS` on Base Sepolia (chain ID 84532).
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3316d2a5-6fb0-407c-81c8-201bc6497897" />
+
 View transactions: https://sepolia.basescan.org
