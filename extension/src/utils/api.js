@@ -129,3 +129,24 @@ export async function getUserAgents(username) {
   const data = await res.json();
   return Array.isArray(data) ? data : [];
 }
+
+// --- KeeperHub direct execution -----------------------------------------
+
+export async function executeContractCall({
+  contract_address,
+  function_name,
+  function_args,
+  network = "base-sepolia",
+}) {
+  const res = await fetch(`${API_BASE}/execute/contract-call`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contract_address,
+      function_name,
+      function_args,
+      network,
+    }),
+  });
+  return res.json();
+}

@@ -249,6 +249,51 @@ async def log_decision(decision: DecisionLog):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/execute/transfer")
+async def execute_keeperhub_transfer(request: dict):
+    """Execute a transfer via KeeperHub after agent debate."""
+    try:
+        from keeperhub_service import execute_transfer
+
+        result = await execute_transfer(
+            recipient=request["recipient"],
+            amount=request["amount"],
+            network=request.get("network", "base-sepolia"),
+            token_address=request.get("token_address"),
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/execute/contract-call")
+async def execute_keeperhub_contract(request: dict):
+    """Execute a contract call via KeeperHub."""
+    try:
+        from keeperhub_service import execute_contract_call
+
+        result = await execute_contract_call(
+            contract_address=request["contract_address"],
+            function_name=request["function_name"],
+            function_args=request.get("function_args", []),
+            network=request.get("network", "base-sepolia"),
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/execute/{execution_id}/status")
+async def get_keeperhub_status(execution_id: str):
+    """Check KeeperHub execution status."""
+    try:
+        from keeperhub_service import get_execution_status
+
+        return await get_execution_status(execution_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/agents/{agent_id}/reputation")
 async def get_agent_reputation(agent_id: str):
     if not registry.get_agent(agent_id):

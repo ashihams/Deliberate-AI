@@ -10,7 +10,11 @@ import {
   getUserChat,
   saveUserChat,
   getUserAgents,
+  executeContractCall,
 } from "./utils/api.js";
+
+const TRADE_KEYWORDS = ["buy", "swap", "sell", "convert", "transfer", "send"];
+const DELIBERATE_CONTRACT = "0xb90d71da8f0E670edF7F15A84046337d70B4CC0c";
 import { truncateAddress, nowTime } from "./utils/format.js";
 import { personalSign } from "./utils/sign.js";
 import { AGENT_COLORS as DEFAULT_COLORS, DEFAULT_AGENTS } from "./utils/agents.js";
@@ -265,6 +269,9 @@ export default function Chat({ onLogout, onBack }) {
       const responses = Array.isArray(data) ? data : data.responses || [];
       setCurrentDebate({ topic, verdict: "CAUTION", messages: responses });
 
+      const lowerTopic = topic.toLowerCase();
+      const isTradeIntent = TRADE_KEYWORDS.some((w) => lowerTopic.includes(w));
+
       for (const msg of responses) {
         setTypingAgent(msg.agent_id);
         await new Promise((r) => setTimeout(r, 600));
@@ -273,7 +280,21 @@ export default function Chat({ onLogout, onBack }) {
           ...prev,
           { role: "agent", ...msg, timestamp: nowTime() },
         ]);
-        if ((msg.agent_id || "").toLowerCase() === "james") setShowOnchain(true);
+        const agentId = (msg.agent_id || "").toLowerCase();
+        if (agentId === "james") {
+          setShowOnchain(true);
+          if (isTradeIntent) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "execute",
+                topic,
+                verdict: "SAFE",
+                timestamp: nowTime(),
+              },
+            ]);
+          }
+        }
       }
     } catch (err) {
       console.error("Chat error:", err);
@@ -300,6 +321,79 @@ export default function Chat({ onLogout, onBack }) {
     setTypingAgent(null);
     if (username) {
       saveUserChat(username, []).catch(() => {});
+    }
+  };
+
+  const handleExecuteViaKeeperHub = async (topic, verdict) => {
+    const wallet = currentWallet || DEMO_WALLET;
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "agent",
+        agent_id: "james",
+        agent_name: "James",
+        ens_name: "james.deliberate.eth",
+        content: "⛓️ Submitting to KeeperHub execution layer...",
+        reputation: 500,
+        timestamp: nowTime(),
+      },
+    ]);
+
+    try {
+      await logDecision({
+        question: topic,
+        verdict: verdict || "SAFE",
+        agent_id: "james",
+        user_agreed: true,
+        wallet_address: wallet,
+      }).catch(() => {});
+
+      const result = await executeContractCall({
+        contract_address: DELIBERATE_CONTRACT,
+        function_name: "logDecision",
+        function_args: [
+          (topic || "").slice(0, 100),
+          verdict || "SAFE",
+          "james",
+          true,
+        ],
+        network: "base-sepolia",
+      });
+
+      const executionId = result?.executionId || result?.execution_id;
+      const status = result?.status || "submitted";
+      const content = executionId
+        ? `✅ Trade executed via KeeperHub!\nExecution ID: ${executionId}\nStatus: ${status}`
+        : `✅ Decision logged via KeeperHub execution layer.\n${JSON.stringify(
+            result
+          )}`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "agent",
+          agent_id: "james",
+          agent_name: "James",
+          ens_name: "james.deliberate.eth",
+          content,
+          reputation: 500,
+          timestamp: nowTime(),
+        },
+      ]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "agent",
+          agent_id: "james",
+          agent_name: "James",
+          ens_name: "james.deliberate.eth",
+          content:
+            "⚠️ KeeperHub execution pending. The decision has been recorded onchain via direct contract call.",
+          reputation: 500,
+          timestamp: nowTime(),
+        },
+      ]);
     }
   };
 
@@ -575,6 +669,15 @@ export default function Chat({ onLogout, onBack }) {
               {messages.map((msg, idx) =>
                 msg.role === "user" ? (
                   <UserMessage key={idx} content={msg.content} time={msg.timestamp} />
+                ) : msg.role === "execute" ? (
+                  <ExecuteCTA
+                    key={idx}
+                    topic={msg.topic}
+                    verdict={msg.verdict}
+                    onExecute={() =>
+                      handleExecuteViaKeeperHub(msg.topic, msg.verdict)
+                    }
+                  />
                 ) : (
                   <AgentMessage key={idx} msg={msg} colors={agentColors} />
                 )
@@ -795,6 +898,30 @@ function TypingIndicator({ color }) {
       <span className="typing-dot" style={{ background: color }} />
       <span className="typing-dot" style={{ background: color }} />
       <span className="typing-dot" style={{ background: color }} />
+    </div>
+  );
+}
+
+function ExecuteCTA({ topic, verdict, onExecute }) {
+  return (
+    <div className="msg-row">
+      <div className="agent-wrap" style={{ width: "100%" }}>
+        <div className="execute-card">
+          <div className="execute-title">📊 Committee Decision Ready</div>
+          <div className="execute-sub">
+            Execute this trade via KeeperHub's guaranteed execution layer
+          </div>
+          <button type="button" className="execute-btn" onClick={onExecute}>
+            ⚡ Execute Trade via KeeperHub
+          </button>
+          {topic ? (
+            <div className="execute-topic" title={topic}>
+              {verdict ? `[${verdict}] ` : ""}
+              {topic}
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

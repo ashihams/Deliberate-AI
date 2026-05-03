@@ -333,6 +333,60 @@ body[data-theme="dark"] .chat-main {
   color: #fff;
   flex-shrink: 0;
 }
+/* KeeperHub Execute CTA */
+.execute-card {
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #a7f3d0;
+  border-left: 3px solid #10b981;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.18);
+}
+body[data-theme="dark"] .execute-card {
+  background: linear-gradient(180deg, #0f2922 0%, #0a1f1a 100%);
+  border-color: #10543c;
+  border-left-color: #10b981;
+}
+.execute-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #047857;
+  margin-bottom: 4px;
+}
+body[data-theme="dark"] .execute-title { color: #10b981; }
+.execute-sub {
+  font-size: 11px;
+  color: #4b5563;
+  margin-bottom: 10px;
+}
+body[data-theme="dark"] .execute-sub { color: #9ca3af; }
+.execute-btn {
+  background: linear-gradient(145deg, #10b981, #059669);
+  border: none;
+  color: #ffffff;
+  padding: 9px 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+  letter-spacing: 0.01em;
+}
+.execute-btn:hover { filter: brightness(1.05); box-shadow: 0 6px 14px rgba(16, 185, 129, 0.4); }
+.execute-btn:active { transform: scale(0.97); }
+.execute-topic {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #475569;
+  font-style: italic;
+  word-break: break-word;
+  max-height: 36px;
+  overflow: hidden;
+}
+body[data-theme="dark"] .execute-topic { color: #9ca3af; }
+
 /* Star rating */
 .stars {
   display: inline-flex;

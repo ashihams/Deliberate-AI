@@ -1,24 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Onboarding from "./Onboarding.jsx";
 import Chat from "./Chat.jsx";
 
 export default function App() {
-  const [view, setView] = useState("loading");
+  // Always start on the Sign In / Sign Up choice screen on every popup open.
+  // The user's stored data (username / wallet / chat history) is still preserved
+  // in chrome.storage.local + MongoDB and is restored after they sign in again.
+  const [view, setView] = useState("onboarding");
 
-  useEffect(() => {
-    (async () => {
-      try {
-        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-          const res = await chrome.storage.local.get(["deliberateWallet"]);
-          setView(res && res.deliberateWallet ? "chat" : "onboarding");
-          return;
-        }
-      } catch (_) {}
-      setView("onboarding");
-    })();
-  }, []);
-
-  if (view === "loading") return null;
   if (view === "chat") {
     return (
       <Chat
